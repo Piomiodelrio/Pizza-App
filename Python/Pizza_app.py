@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from typing import List, Dict
 
 # ---------- Datenmodell ----------
@@ -12,7 +12,7 @@ class Pizza:
     price_chf: float
 
     def has_all_toppings(self, wanted: List[str]) -> bool:
-        """True, wenn alle gesuchten Beläge auf dieser Pizza vorhanden sind."""
+        """True, wenn alle gesuchten Beläge auf dieser Pizza vorhanden sind (case-insensitive)."""
         s = {t.lower().strip() for t in self.toppings}
         w = {t.lower().strip() for t in wanted if t.strip()}
         return w.issubset(s)
@@ -21,7 +21,11 @@ class Pizza:
         belag = ", ".join(self.toppings) if self.toppings else "—"
         return f"{self.name:12s} | Beläge: {belag:40s} | Preis: CHF {self.price_chf:0.2f}"
 
-# ---------- “Datenbank” (Liste) ----------
+    def __str__(self) -> str:
+        return self.details()
+
+
+# ---------- “Datenbank” (Liste/Dict) ----------
 PIZZAS: Dict[str, Pizza] = {
     "margherita": Pizza("Margherita", ["tomato", "mozzarella", "basil"], 12.50),
     "hawaii":     Pizza("Hawaii", ["tomato", "mozzarella", "ham", "pineapple"], 16.50),
@@ -33,33 +37,58 @@ PIZZAS: Dict[str, Pizza] = {
 COUPON_CODE = "PIZZA10"
 COUPON_DISCOUNT = 0.10  # 10%
 
+
 # ---------- Hilfsfunktionen ----------
+def _tokenize(s: str) -> List[str]:
+    """
+    Zerlegt die Eingabe tolerant:
+    - erlaubt Kommata und/oder Leerzeichen als Trenner
+    - entfernt doppelte/führende/trailende Spaces
+    Beispiele: "ham pineapple" / "ham, pineapple" / "ham,  pineapple"
+    """
+    return [t for part in s.split(",") for t in part.strip().split() if t.strip()]
+
+
 def list_all_pizzas() -> None:
     print("\nVerfügbare Pizzen:")
-    for p in PIZZAS.values():
+    for p in sorted(PIZZAS.values(), key=lambda x: x.name.lower()):
         print("  - " + p.details())
     print()
 
+
 def list_pizzas_by_toppings() -> None:
-    print("\nGeben Sie Beläge ein, durch Leerzeichen getrennt.")
-    print("Beispiel: ham pineapple")
+    print("\nGeben Sie Beläge ein (Leerzeichen oder Komma getrennt).")
+    print("Beispiel: ham pineapple   oder   ham, pineapple")
     raw = input("Beläge: ").strip()
-    wanted = [x for x in raw.split(" ") if x]
+    wanted = _tokenize(raw)
     if not wanted:
         print("Keine Beläge eingegeben.\n")
         return
+
     hits = [p for p in PIZZAS.values() if p.has_all_toppings(wanted)]
     if not hits:
         print("Keine passende Pizza gefunden.\n")
         return
+
     print("\nTreffer:")
-    for p in hits:
+    for p in sorted(hits, key=lambda x: x.name.lower()):
         print("  - " + p.details())
     print()
 
+
 def choose_pizza_by_name() -> None:
     name = input("\nName der Pizza: ").strip().lower()
+
+    # 1) direkter Treffer über Dict-Key
     pizza = PIZZAS.get(name)
+
+    # 2) sonst über den sichtbaren Namen matchen (case-insensitive)
+    if not pizza:
+        for p in PIZZAS.values():
+            if p.name.lower() == name:
+                pizza = p
+                break
+
     if not pizza:
         print("Diese Pizza existiert nicht.")
         print("Verfügbare Namen: " + ", ".join(p.name for p in PIZZAS.values()) + "\n")
@@ -68,7 +97,7 @@ def choose_pizza_by_name() -> None:
     price = pizza.price_chf
     print(f"\nAusgewählt: {pizza.name} – Basispreis CHF {price:0.2f}")
 
-    code = input(f"Gutscheincode eingeben (oder Enter): ").strip().upper()
+    code = input("Gutscheincode eingeben (oder Enter): ").strip().upper()
     if code == COUPON_CODE:
         discount = price * COUPON_DISCOUNT
         price -= discount
@@ -78,12 +107,13 @@ def choose_pizza_by_name() -> None:
 
     print(f"Zu bezahlen: CHF {price:0.2f}\n")
 
+
 def main() -> None:
     print("🍕 Pizza-Programm – interaktive Demo\n")
     while True:
         print("Menü:")
         print("  [1] Alle Pizzen mit Details auflisten")
-        print("  [2] Pizzen nach eingegebenen Belägen filtern (z.B. 'ham pineapple')")
+        print("  [2] Pizzen nach eingegebenen Belägen filtern")
         print("  [3] Pizza per Name auswählen und Preis (inkl. Gutschein) berechnen")
         print("  [q] Beenden")
         choice = input("> ").strip().lower()
@@ -99,6 +129,7 @@ def main() -> None:
             break
         else:
             print("Ungültige Auswahl.\n")
+
 
 if __name__ == "__main__":
     main()
