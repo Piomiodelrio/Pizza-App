@@ -1,0 +1,1 @@
+Print("Einführung Python Script für Schulaufgabe)
